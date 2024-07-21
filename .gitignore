@@ -1,5 +1,9 @@
-node_modules
+node_modules/
 server.js
 client.js
 *.js.*
 *.mjs*
+*.map
+.prettierignore
+tsconfig.tsbuildinfo
+*~
