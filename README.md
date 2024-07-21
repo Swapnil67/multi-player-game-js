@@ -8,3 +8,13 @@
   - Left
   - Right
 
+
+
+## Quick Start
+
+```console
+$ npm install
+$ npm run watch
+$ npm run server
+$ <browser> https://localhost:6969/
+```
