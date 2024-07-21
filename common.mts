@@ -116,6 +116,10 @@ export function isPlayerMoving(arg: any): arg is PlayerMoving {
   );
 }
 
+function properMod(a: number, b: number): number {
+  return ((a % b) + b) % b;
+}
+
 export function updatePlayer(player: Player, deltaTime: number) {
   let dir: Direction;
   let dx = 0,
@@ -126,8 +130,8 @@ export function updatePlayer(player: Player, deltaTime: number) {
       dy += DIRECTION_VECTORS[dir].y;
     }
   }
-  player.x += dx * PLAYER_SPEED * deltaTime;
-  player.y += dy * PLAYER_SPEED * deltaTime;
+  player.x = properMod(player.x + dx * PLAYER_SPEED * deltaTime, WORLD_WIDTH);
+  player.y = properMod(player.y + dy * PLAYER_SPEED * deltaTime, WORLD_HEIGHT);
 }
 
 export type Events = PlayerJoined | PlayerLeft | PlayerMoving;
