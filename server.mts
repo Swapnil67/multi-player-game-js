@@ -3,6 +3,7 @@ import * as common from "./common.mjs";
 import { type Player, Events } from "./common.mjs";
 
 const SERVER_FPS = 30;
+const SERVER_LIMIT = 10;
 
 interface PlayerWithSocket extends Player {
   ws: WebSocket;
@@ -23,6 +24,10 @@ const wss = new WebSocketServer({
 });
 
 wss.on("connection", (ws) => {
+  if(players.size >= SERVER_LIMIT) {
+    ws.close();
+    return;
+  }
   const id = idCounter++;
   const x = Math.random() * common.WORLD_WIDTH;
   const y = Math.random() * common.WORLD_WIDTH;
