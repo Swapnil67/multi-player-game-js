@@ -60,13 +60,13 @@ const DIRECTION_KEYS: { [key: string]: Direction } = {
             up: false,
             down: false,
           },
+          style: message.style,
         };
         players.set(newPlayer.id, newPlayer);
       } else if (common.isPlayerLeft(message)) {
         players.delete(message.id);
       } else if (common.isPlayerMoving(message)) {
-        console.log("Message ", message);
-
+        console.log("Player Moving ", message);
         const player = players.get(message.id);
         if (player === undefined) {
           console.log(
@@ -98,9 +98,9 @@ const DIRECTION_KEYS: { [key: string]: Direction } = {
     // * Draw Players
     ctx.fillStyle = "white";
     ctx.fillRect(0, 0, WORLD_WIDTH, WORLD_HEIGHT);
-    ctx.fillStyle = "red";
     players.forEach((player) => {
       common.updatePlayer(player, deltaTime);
+      ctx.fillStyle = player.style;
       ctx.fillRect(player.x, player.y, PLAYER_SIZE, PLAYER_SIZE);
     });
 

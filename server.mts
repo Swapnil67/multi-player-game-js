@@ -10,6 +10,10 @@ interface PlayerWithSocket extends Player {
 
 const eventQueue: Array<Events> = [];
 
+function randomStyle() {
+  return `hsl(${Math.floor(Math.random() * 360)} 80%, 50%)`;
+}
+
 // * Map websocket to player
 const players = new Map<number, PlayerWithSocket>();
 let idCounter = 0;
@@ -22,6 +26,8 @@ wss.on("connection", (ws) => {
   const id = idCounter++;
   const x = Math.random() * common.WORLD_WIDTH;
   const y = Math.random() * common.WORLD_WIDTH;
+  const style = randomStyle();
+
   const player = {
     ws,
     id,
@@ -33,10 +39,19 @@ wss.on("connection", (ws) => {
       up: false,
       down: false,
     },
+    style,
   };
   players.set(id, player);
   console.log(`Player ${id} Connected!`);
-  eventQueue.push({ kind: "PlayerJoined", id, x, y });
+
+  const playerJoinedMessage: common.PlayerJoined = {
+    kind: "PlayerJoined",
+    id,
+    x,
+    y,
+    style,
+  };
+  eventQueue.push(playerJoinedMessage);
 
   ws.addEventListener("message", (event) => {
     const message = JSON.parse(event.data.toString());
@@ -85,11 +100,12 @@ function tick() {
           );
           const eventString = JSON.stringify(event);
           players.forEach((otherPlayer) => {
-            const otherPlayerPositions = {
+            const otherPlayerPositions: common.PlayerJoined = {
               kind: "PlayerJoined",
               id: otherPlayer.id,
               x: otherPlayer.x,
               y: otherPlayer.y,
+              style: otherPlayer.style,
             };
             joinedPlayer.ws.send(JSON.stringify(otherPlayerPositions));
             // * Send notification to other players of new joined player

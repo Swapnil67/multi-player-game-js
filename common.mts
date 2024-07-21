@@ -18,6 +18,10 @@ export function isBoolean(arg: any): arg is Boolean {
   return typeof arg === "boolean";
 }
 
+export function isString(arg: any): arg is string {
+  return typeof arg === "string";
+}
+
 export function isDirection(arg: any): arg is Direction {
   return DIRECTION_VECTORS[arg as Direction] != undefined;
 }
@@ -29,12 +33,12 @@ export const DIRECTION_VECTORS: { [key in Direction]: Vector2 } = {
   down: { x: 0, y: 1 },
 };
 
-
 export interface Player {
   id: number;
   x: number;
   y: number;
   moving: Moving;
+  style: string;
 }
 
 export interface Hello {
@@ -51,6 +55,7 @@ export interface PlayerJoined {
   id: number;
   x: number;
   y: number;
+  style: string;
 }
 
 export function isPlayerJoined(arg: any): arg is PlayerJoined {
@@ -59,7 +64,8 @@ export function isPlayerJoined(arg: any): arg is PlayerJoined {
     arg.kind == "PlayerJoined" &&
     isNumber(arg.id) &&
     isNumber(arg.x) &&
-    isNumber(arg.y)
+    isNumber(arg.y) &&
+    isString(arg.style)
   );
 }
 
