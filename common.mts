@@ -1,3 +1,5 @@
+import { WebSocket, WebSocketServer } from "ws";
+
 export const SERVER_PORT = 6970;
 export const WORLD_WIDTH = 600;
 export const WORLD_HEIGHT = 800;
@@ -44,6 +46,9 @@ export interface Player {
 export interface Hello {
   kind: "Hello";
   id: number;
+  x: number;
+  y: number;
+  style: string;
 }
 
 export function isHello(arg: any): arg is Hello {
@@ -116,6 +121,8 @@ export function isPlayerMoving(arg: any): arg is PlayerMoving {
   );
 }
 
+export type Events = PlayerJoined | PlayerLeft | PlayerMoving;
+
 function properMod(a: number, b: number): number {
   return ((a % b) + b) % b;
 }
@@ -134,4 +141,15 @@ export function updatePlayer(player: Player, deltaTime: number) {
   player.y = properMod(player.y + dy * PLAYER_SPEED * deltaTime, WORLD_HEIGHT);
 }
 
-export type Events = PlayerJoined | PlayerLeft | PlayerMoving;
+interface Message {
+  kind: string
+}
+
+interface MessageCounter {
+  count: number
+}
+
+export function sendMessage<T extends Message>(socket: WebSocket, message: T) {
+  socket.send(JSON.stringify(message));
+}
+

@@ -27,7 +27,8 @@ const DIRECTION_KEYS: { [key: string]: Direction } = {
   if (ctx == null) throw new Error("2d Canvas is not supported");
 
   const players = new Map<number, Player>();
-  const url = "ws://localhost:6970";
+  const host = window.location.hostname
+  const url = `ws://${host}:6970`;
   const ws = new WebSocket(url);
   let myId: undefined | number = undefined;
   ws.addEventListener("open", (event) => {
@@ -38,7 +39,7 @@ const DIRECTION_KEYS: { [key: string]: Direction } = {
   });
   ws.addEventListener("message", (event) => {
     console.log("WEBSOCKET MESSAGE ", event);
-    if (myId == undefined) {
+    if (myId === undefined) {
       const message = JSON.parse(event.data) as Hello;
       if (common.isHello(message)) {
         myId = message.id;
@@ -142,3 +143,4 @@ const DIRECTION_KEYS: { [key: string]: Direction } = {
     }
   });
 })();
+

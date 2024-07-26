@@ -101,6 +101,9 @@ function tick() {
             JSON.stringify({
               id: joinedPlayer.id,
               kind: "Hello",
+              x: joinedPlayer.x,
+              y: joinedPlayer.y,
+              style: joinedPlayer.style
             })
           );
           const eventString = JSON.stringify(event);
