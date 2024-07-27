@@ -142,14 +142,14 @@ export function updatePlayer(player: Player, deltaTime: number) {
 }
 
 interface Message {
-  kind: string
+  kind: string;
 }
 
-interface MessageCounter {
-  count: number
+export function sendMessage<T extends Message>(
+  socket: WebSocket,
+  message: T
+): number {
+  const text = JSON.stringify(message);
+  socket.send(text);
+  return text.length;
 }
-
-export function sendMessage<T extends Message>(socket: WebSocket, message: T) {
-  socket.send(JSON.stringify(message));
-}
-
