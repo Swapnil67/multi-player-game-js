@@ -28,7 +28,7 @@ function createBot(): Bot {
   bot.ws.addEventListener("message", (event) => {
     if (bot.me === undefined) {
       const message = JSON.parse(event.data.toString());
-      console.log("message ", message);
+      // console.log("message ", message);
 
       if (common.isHello(message)) {
         // * You

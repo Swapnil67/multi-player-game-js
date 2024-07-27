@@ -103,6 +103,12 @@ const DIRECTION_KEYS: { [key: string]: Direction } = {
       common.updatePlayer(player, deltaTime);
       ctx.fillStyle = player.style;
       ctx.fillRect(player.x, player.y, PLAYER_SIZE, PLAYER_SIZE);
+
+      // ctx.strokeStyle = "black";
+      // ctx.lineWidth = 4;
+      // ctx.beginPath()
+      // ctx.strokeRect(player.x, player.y, PLAYER_SIZE, PLAYER_SIZE);
+      // ctx.stroke();
     });
 
     window.requestAnimationFrame(frame);
