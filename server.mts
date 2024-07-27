@@ -29,6 +29,7 @@ wss.on("connection", (ws) => {
     return;
   }
   const id = idCounter++;
+  // * Make a random position for new player in world
   const x = Math.random() * common.WORLD_WIDTH;
   const y = Math.random() * common.WORLD_WIDTH;
   const style = randomStyle();
