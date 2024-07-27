@@ -63,7 +63,7 @@ wss.on("connection", (ws) => {
     const message = JSON.parse(event.data.toString());
     // * Server receives AmmaMoving & then Transforms it into player moving
     if (common.isAmmaMoving(message)) {
-      console.log(`Player ${id} is moving `, message);
+      // console.log(`Player ${id} is moving `, message);
 
       const movingMessage: common.PlayerMoving = {
         kind: "PlayerMoving",
@@ -134,8 +134,7 @@ function tick() {
         break;
       case "PlayerMoving":
         {
-          console.log("Received event ", event);
-
+          // console.log("Received event ", event);
           const player = players.get(event.id);
           if (player == undefined) continue;
           player.moving[event.direction] = event.start;
