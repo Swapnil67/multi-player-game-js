@@ -81,6 +81,7 @@ export interface Player {
 export enum MessageKind {
   Hello,
   PlayerJoined,
+  PlayerLeft
 }
 
 interface Field {
@@ -194,12 +195,21 @@ export const PlayerJoinedStruct = (() => {
 
 // * Player Left Message
 
-export interface PlayerLeft {
+export const PlayerLeftStruct = (() => {
+  const allocator = { iota: 0 };
+  return {
+    kind: allocUint8Field(allocator),
+    id: allocUint32Field(allocator),
+    size: allocator.iota,
+  };
+})();
+
+export interface _PlayerLeft {
   kind: "PlayerLeft";
   id: number;
 }
 
-export function isPlayerLeft(arg: any): arg is PlayerLeft {
+export function isPlayerLeft(arg: any): arg is _PlayerLeft {
   return arg && arg.kind == "PlayerLeft" && isNumber(arg.id);
 }
 
@@ -241,7 +251,7 @@ export function isPlayerMoving(arg: any): arg is PlayerMoving {
   );
 }
 
-export type Events = PlayerJoined | PlayerLeft | PlayerMoving;
+export type Events = PlayerJoined | _PlayerLeft | PlayerMoving;
 
 function properMod(a: number, b: number): number {
   return ((a % b) + b) % b;

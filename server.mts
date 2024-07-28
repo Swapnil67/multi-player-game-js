@@ -5,7 +5,7 @@ import {
   Player,
   Events,
   Direction,
-  PlayerLeft,
+  _PlayerLeft,
   PlayerMoving,
   PlayerJoined,
 } from "./common.mjs";
@@ -323,15 +323,12 @@ function tick() {
 
   // * Notififying about who left
   leftIds.forEach((leftId) => {
+    const view = new DataView(new ArrayBuffer(common.PlayerLeftStruct.size));
+    common.PlayerLeftStruct.kind.write(view, 0, common.MessageKind.PlayerLeft);
+    common.PlayerLeftStruct.id.write(view, 0, leftId);
     players.forEach((player) => {
-      const playerLeftPayload: PlayerLeft = {
-        kind: "PlayerLeft",
-        id: leftId,
-      };
-      bytesSentCounter += common.sendMessage<PlayerLeft>(
-        player.ws,
-        playerLeftPayload
-      );
+      player.ws.send(view);
+      bytesSentCounter += view.byteLength;
       messageSentCounter += 1;
     });
   });

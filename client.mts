@@ -83,21 +83,29 @@ const url = `ws://${host}:6970`;
       if (event.data instanceof ArrayBuffer) {
         const view = new DataView(event.data);
         console.log("view ", view);
-        
+
         if (
           common.PlayerJoinedStruct.size === view.byteLength &&
           common.PlayerJoinedStruct.kind.read(view, 0) ===
             common.MessageKind.PlayerJoined
         ) {
-          // console.log("PlayerJoined view ", view);
           const newPlayer = {
             id: common.PlayerJoinedStruct.id.read(view, 0),
             x: common.PlayerJoinedStruct.x.read(view, 0),
             y: common.PlayerJoinedStruct.y.read(view, 0),
-            moving: common.movingFromMask(common.PlayerJoinedStruct.moving.read(view, 0)),
+            moving: common.movingFromMask(
+              common.PlayerJoinedStruct.moving.read(view, 0)
+            ),
             hue: (common.PlayerJoinedStruct.hue.read(view, 0) / 256) * 360,
           };
           players.set(newPlayer.id, newPlayer);
+        } else if (
+          common.PlayerLeftStruct.size === view.byteLength &&
+          common.PlayerLeftStruct.kind.read(view, 0) ===
+            common.MessageKind.PlayerLeft
+        ) {
+          const id = common.PlayerLeftStruct.id.read(view, 0);
+          players.delete(id);
         } else {
           console.error(
             "Received bogus message from server. Incorrect `PlayerJoined` message ",
@@ -107,9 +115,7 @@ const url = `ws://${host}:6970`;
         }
       } else {
         const message = JSON.parse(event.data);
-        if (common.isPlayerLeft(message)) {
-          players.delete(message.id);
-        } else if (common.isPlayerMoving(message)) {
+        if (common.isPlayerMoving(message)) {
           console.log("Player Moving ", message);
           const player = players.get(message.id);
           if (player === undefined) {
