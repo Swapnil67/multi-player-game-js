@@ -280,25 +280,6 @@ function tick() {
           joinedPlayer.ws.send(view);
           bytesSentCounter += view.byteLength;
           messageSentCounter += 1;
-
-          let direction: Direction;
-          for (direction in otherPlayer.moving) {
-            if (otherPlayer.moving[direction]) {
-              const PlayerMovingPayload: PlayerMoving = {
-                direction,
-                kind: "PlayerMoving",
-                id: otherPlayer.id,
-                x: otherPlayer.x,
-                y: otherPlayer.y,
-                start: true,
-              };
-              bytesSentCounter += common.sendMessage<PlayerMoving>(
-                joinedPlayer.ws,
-                PlayerMovingPayload
-              );
-              messageSentCounter += 1;
-            }
-          }
         }
       });
     }
