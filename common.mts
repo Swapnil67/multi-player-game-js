@@ -16,6 +16,37 @@ export type Moving = {
   [k in Direction]: Boolean;
 };
 
+// TODO: it's really easy to forget to update this arrray if the definition of type direction changes
+const directions: Direction[] = ["left", "right", "up", "down"];
+
+export function movingMask(moving: Moving): number {
+  let mask = 0;
+  for (let i = 0; i < directions.length; i++) {
+    if (moving[directions[i]]) {
+      mask = mask | (1 << i);
+    }
+  }
+  return mask;
+}
+
+export function setMovingMask(moving: Moving, mask: number) {
+  for (let i = 0; i < directions.length; i++) {
+    // console.log(mask, " ", i, " -> ", (mask << i)&1);
+    moving[directions[i]] = ((mask<<i)&1) !== 0;
+  }
+}
+
+export function movingFromMask(mask: number): Moving {
+  const moving: Moving = {
+    left: false,
+    right: false,
+    up: false,
+    down: false,
+  }
+  setMovingMask(moving, mask);
+  return moving;
+}
+
 export function isNumber(arg: any): arg is number {
   return typeof arg === "number";
 }
@@ -49,14 +80,7 @@ export interface Player {
 
 export enum MessageKind {
   Hello,
-}
-
-export interface Hello {
-  kind: "Hello";
-  id: number;
-  x: number;
-  y: number;
-  hue: number;
+  PlayerJoined,
 }
 
 interface Field {
@@ -105,6 +129,20 @@ function allocFloat32Field(allocator: { iota: number }): Field {
   };
 }
 
+// * Hello Message
+
+export interface Hello {
+  kind: "Hello";
+  id: number;
+  x: number;
+  y: number;
+  hue: number;
+}
+
+export function isHello(arg: any): arg is Hello {
+  return arg && arg.kind == "Hello" && isNumber(arg.id);
+}
+
 // * Definition of structure in javascript
 // * [kind: Uint8] [id: Uint32] [x: Float32] [y: Float32] [hue: Uint8]
 export const HelloStruct = (() => {
@@ -115,13 +153,12 @@ export const HelloStruct = (() => {
     x: allocFloat32Field(allocator),
     y: allocFloat32Field(allocator),
     hue: allocUint8Field(allocator),
+    moving: allocUint8Field(allocator),
     size: allocator.iota,
   };
 })();
 
-export function isHello(arg: any): arg is Hello {
-  return arg && arg.kind == "Hello" && isNumber(arg.id);
-}
+// * Player Joined Message
 
 export interface PlayerJoined {
   kind: "PlayerJoined";
@@ -141,6 +178,21 @@ export function isPlayerJoined(arg: any): arg is PlayerJoined {
     isNumber(arg.hue)
   );
 }
+
+export const PlayerJoinedStruct = (() => {
+  const allocator = { iota: 0 };
+  return {
+    kind: allocUint8Field(allocator),
+    id: allocUint32Field(allocator),
+    x: allocFloat32Field(allocator),
+    y: allocFloat32Field(allocator),
+    hue: allocUint8Field(allocator),
+    moving: allocUint8Field(allocator),
+    size: allocator.iota,
+  };
+})();
+
+// * Player Left Message
 
 export interface PlayerLeft {
   kind: "PlayerLeft";

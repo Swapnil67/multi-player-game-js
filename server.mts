@@ -236,7 +236,6 @@ function tick() {
   joinedIds.forEach((joinedId) => {
     const joinedPlayer = players.get(joinedId);
     // console.log("joinedPlayer ", joinedPlayer);
-
     if (joinedPlayer !== undefined) {
       // * The greetings
       const view = new DataView(new ArrayBuffer(common.HelloStruct.size));
@@ -250,25 +249,38 @@ function tick() {
         Math.floor((joinedPlayer.hue / 360) * 256)
       );
       joinedPlayer.ws.send(view);
-      bytesReceivedWithinTick += view.byteLength;
+      bytesSentCounter += view.byteLength;
       messageSentCounter += 1;
 
       // * Reconstructing state for other players
       players.forEach((otherPlayer) => {
+        // * Joined player should already know about there themselves
         if (joinedId !== otherPlayer.id) {
-          // * Joined player should already know about there themselves
-          const playerJoinedPayload: PlayerJoined = {
-            kind: "PlayerJoined",
-            id: otherPlayer.id,
-            x: otherPlayer.x,
-            y: otherPlayer.y,
-            hue: otherPlayer.hue,
-          };
-          bytesSentCounter += common.sendMessage<PlayerJoined>(
-            joinedPlayer.ws,
-            playerJoinedPayload
+          const view = new DataView(
+            new ArrayBuffer(common.PlayerJoinedStruct.size)
           );
+          common.PlayerJoinedStruct.kind.write(
+            view,
+            0,
+            common.MessageKind.PlayerJoined
+          );
+          common.PlayerJoinedStruct.id.write(view, 0, otherPlayer.id);
+          common.PlayerJoinedStruct.x.write(view, 0, otherPlayer.x);
+          common.PlayerJoinedStruct.y.write(view, 0, otherPlayer.y);
+          common.PlayerJoinedStruct.hue.write(
+            view,
+            0,
+            Math.floor((otherPlayer.hue / 360) * 256)
+          );
+          common.PlayerJoinedStruct.moving.write(
+            view,
+            0,
+            common.movingMask(otherPlayer.moving)
+          );
+          joinedPlayer.ws.send(view);
+          bytesSentCounter += view.byteLength;
           messageSentCounter += 1;
+
           let direction: Direction;
           for (direction in otherPlayer.moving) {
             if (otherPlayer.moving[direction]) {
@@ -296,20 +308,32 @@ function tick() {
   joinedIds.forEach((joinedId) => {
     const joinedPlayer = players.get(joinedId);
     if (joinedPlayer !== undefined) {
+      const view = new DataView(
+        new ArrayBuffer(common.PlayerJoinedStruct.size)
+      );
+      common.PlayerJoinedStruct.kind.write(
+        view,
+        0,
+        common.MessageKind.PlayerJoined
+      );
+      common.PlayerJoinedStruct.id.write(view, 0, joinedPlayer.id);
+      common.PlayerJoinedStruct.x.write(view, 0, joinedPlayer.x);
+      common.PlayerJoinedStruct.y.write(view, 0, joinedPlayer.y);
+      common.PlayerJoinedStruct.hue.write(
+        view,
+        0,
+        Math.floor((joinedPlayer.hue / 360) * 256)
+      );
+      common.PlayerJoinedStruct.moving.write(
+        view,
+        0,
+        common.movingMask(joinedPlayer.moving)
+      );
       players.forEach((otherPlayer) => {
+        // * joined player should already know about themselves
         if (joinedId !== otherPlayer.id) {
-          const playerJoinedPayload: PlayerJoined = {
-            kind: "PlayerJoined",
-            id: joinedPlayer.id,
-            x: joinedPlayer.x,
-            y: joinedPlayer.y,
-            hue: joinedPlayer.hue,
-          };
-          // * joined player should already know about themselves
-          bytesSentCounter += common.sendMessage<PlayerJoined>(
-            otherPlayer.ws,
-            playerJoinedPayload
-          );
+          otherPlayer.ws.send(view);
+          bytesSentCounter += view.byteLength;
           messageSentCounter += 1;
         }
       });

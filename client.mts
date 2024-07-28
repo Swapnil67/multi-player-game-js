@@ -33,7 +33,7 @@ const url = `ws://${host}:6970`;
   let myId: undefined | number = undefined;
   let me: Player | undefined = undefined;
   const players = new Map<number, Player>();
-  ws.binaryType = 'arraybuffer';
+  ws.binaryType = "arraybuffer";
   ws.addEventListener("close", (event) => {
     console.log("WEBSOCKET CLOSE ", event);
     ws = undefined;
@@ -64,52 +64,70 @@ const url = `ws://${host}:6970`;
             },
             hue: (common.HelloStruct.hue.read(view, 0) / 256) * 360,
           };
-          console.log("Me ", me);
           players.set(me.id, me);
         } else {
-          console.error("Received bogus message from server. Incorrect `Hello` message ", view);
+          console.error(
+            "Received bogus message from server. Incorrect `Hello` message ",
+            view
+          );
           ws?.close();
         }
       } else {
-        console.error("Received bogus message from server. Expected binary data ", event);
+        console.error(
+          "Received bogus message from server. Expected binary data ",
+          event
+        );
         ws?.close();
       }
     } else {
-      const message = JSON.parse(event.data);
-      if (common.isPlayerJoined(message)) {
-        const newPlayer = {
-          id: message.id,
-          x: message.x,
-          y: message.y,
-          moving: {
-            left: false,
-            right: false,
-            up: false,
-            down: false,
-          },
-          hue: message.hue,
-        };
-        players.set(newPlayer.id, newPlayer);
-      } else if (common.isPlayerLeft(message)) {
-        players.delete(message.id);
-      } else if (common.isPlayerMoving(message)) {
-        console.log("Player Moving ", message);
-        const player = players.get(message.id);
-        if (player === undefined) {
-          console.log(
-            `Received bogus message from server. We don't know anything about player with the id ${message.id} `,
-            message
+      if (event.data instanceof ArrayBuffer) {
+        const view = new DataView(event.data);
+        console.log("view ", view);
+        
+        if (
+          common.PlayerJoinedStruct.size === view.byteLength &&
+          common.PlayerJoinedStruct.kind.read(view, 0) ===
+            common.MessageKind.PlayerJoined
+        ) {
+          // console.log("PlayerJoined view ", view);
+          const newPlayer = {
+            id: common.PlayerJoinedStruct.id.read(view, 0),
+            x: common.PlayerJoinedStruct.x.read(view, 0),
+            y: common.PlayerJoinedStruct.y.read(view, 0),
+            moving: common.movingFromMask(common.PlayerJoinedStruct.moving.read(view, 0)),
+            hue: (common.PlayerJoinedStruct.hue.read(view, 0) / 256) * 360,
+          };
+          players.set(newPlayer.id, newPlayer);
+        } else {
+          console.error(
+            "Received bogus message from server. Incorrect `PlayerJoined` message ",
+            view
           );
           ws?.close();
-          return;
         }
-        player.moving[message.direction] = message.start;
-        // * Synchronize the moving player positions
-        player.x = message.x;
-        player.y = message.y;
       } else {
-        console.log("Received bogus message from server ", message);
-        ws?.close();
+        const message = JSON.parse(event.data);
+        if (common.isPlayerLeft(message)) {
+          players.delete(message.id);
+        } else if (common.isPlayerMoving(message)) {
+          console.log("Player Moving ", message);
+          const player = players.get(message.id);
+          if (player === undefined) {
+            console.log(
+              `Received bogus message from server. We don't know anything about player with the id ${message.id} `,
+              message
+            );
+            ws?.close();
+            return;
+          }
+          player.moving[message.direction] = message.start;
+          // * Synchronize the moving player positions
+          player.x = message.x;
+          player.y = message.y;
+        } else {
+          console.log("Received bogus message from server ", message);
+          ws?.close();
+        }
       }
     }
   });
