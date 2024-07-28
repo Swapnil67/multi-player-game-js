@@ -52,6 +52,10 @@ function randomStyle() {
   return `hsl(${Math.floor(Math.random() * 360)} 80%, 50%)`;
 }
 
+function randomHue() {
+  return Math.floor(Math.random() * 360);
+}
+
 function average(nums: Array<number>): number {
   return nums.reduce((a, b) => a + b, 0) / nums.length;
 }
@@ -102,8 +106,7 @@ function printStats() {
   console.log("Total Players joined ", stats.playersJoined);
   console.log("Total Players left ", stats.playersLeft);
   console.log("Bogus messages ", stats.bogusMessages);
-  console.log("Uptime (secs) ", (performance.now()-stats.startedAt)/1000);
-  
+  console.log("Uptime (secs) ", (performance.now() - stats.startedAt) / 1000);
 }
 
 interface PlayerWithSocket extends Player {
@@ -130,7 +133,7 @@ wss.on("connection", (ws) => {
   // * Make a random position for new player in world
   const x = Math.random() * common.WORLD_WIDTH;
   const y = Math.random() * common.WORLD_WIDTH;
-  const style = randomStyle();
+  const hue = randomHue();
   const player = {
     ws,
     id,
@@ -142,7 +145,7 @@ wss.on("connection", (ws) => {
       up: false,
       down: false,
     },
-    style,
+    hue,
   };
   players.set(id, player);
   joinedIds.add(id);
@@ -153,7 +156,7 @@ wss.on("connection", (ws) => {
     id,
     x,
     y,
-    style,
+    hue,
   };
   eventQueue.push(playerJoinedMessage);
   stats.playersJoined += 1;
@@ -236,18 +239,20 @@ function tick() {
 
     if (joinedPlayer !== undefined) {
       // * The greetings
-      const helloPayload: Hello = {
-        kind: "Hello",
-        id: joinedPlayer.id,
-        x: joinedPlayer.x,
-        y: joinedPlayer.y,
-        style: joinedPlayer.style,
-      };
-      bytesSentCounter += common.sendMessage<Hello>(
-        joinedPlayer.ws,
-        helloPayload
+      const view = new DataView(new ArrayBuffer(common.HelloStruct.size));
+      common.HelloStruct.kind.write(view, 0, common.MessageKind.Hello);
+      common.HelloStruct.id.write(view, 0, joinedPlayer.id);
+      common.HelloStruct.x.write(view, 0, joinedPlayer.x);
+      common.HelloStruct.y.write(view, 0, joinedPlayer.y);
+      common.HelloStruct.hue.write(
+        view,
+        0,
+        Math.floor((joinedPlayer.hue / 360) * 256)
       );
+      joinedPlayer.ws.send(view);
+      bytesReceivedWithinTick += view.byteLength;
       messageSentCounter += 1;
+
       // * Reconstructing state for other players
       players.forEach((otherPlayer) => {
         if (joinedId !== otherPlayer.id) {
@@ -257,7 +262,7 @@ function tick() {
             id: otherPlayer.id,
             x: otherPlayer.x,
             y: otherPlayer.y,
-            style: otherPlayer.style,
+            hue: otherPlayer.hue,
           };
           bytesSentCounter += common.sendMessage<PlayerJoined>(
             joinedPlayer.ws,
@@ -268,12 +273,12 @@ function tick() {
           for (direction in otherPlayer.moving) {
             if (otherPlayer.moving[direction]) {
               const PlayerMovingPayload: PlayerMoving = {
+                direction,
                 kind: "PlayerMoving",
                 id: otherPlayer.id,
                 x: otherPlayer.x,
                 y: otherPlayer.y,
                 start: true,
-                direction,
               };
               bytesSentCounter += common.sendMessage<PlayerMoving>(
                 joinedPlayer.ws,
@@ -292,21 +297,21 @@ function tick() {
     const joinedPlayer = players.get(joinedId);
     if (joinedPlayer !== undefined) {
       players.forEach((otherPlayer) => {
-        // if (joinedId !== otherPlayer.id) {
-        const playerJoinedPayload: PlayerJoined = {
-          kind: "PlayerJoined",
-          id: joinedPlayer.id,
-          x: joinedPlayer.x,
-          y: joinedPlayer.y,
-          style: joinedPlayer.style,
-        };
-        // * joined player should already know about themselves
-        bytesSentCounter += common.sendMessage<PlayerJoined>(
-          otherPlayer.ws,
-          playerJoinedPayload
-        );
-        messageSentCounter += 1;
-        // }
+        if (joinedId !== otherPlayer.id) {
+          const playerJoinedPayload: PlayerJoined = {
+            kind: "PlayerJoined",
+            id: joinedPlayer.id,
+            x: joinedPlayer.x,
+            y: joinedPlayer.y,
+            hue: joinedPlayer.hue,
+          };
+          // * joined player should already know about themselves
+          bytesSentCounter += common.sendMessage<PlayerJoined>(
+            otherPlayer.ws,
+            playerJoinedPayload
+          );
+          messageSentCounter += 1;
+        }
       });
     }
   });
@@ -360,9 +365,9 @@ function tick() {
   eventQueue.length = 0;
   bytesReceivedWithinTick = 0;
 
-  if (stats.ticksCount % SERVER_FPS == 0) {
-    printStats();
-  }
+  // if (stats.ticksCount % SERVER_FPS == 0) {
+  //   printStats();
+  // }
 
   setTimeout(tick, 1000 / SERVER_FPS);
 }

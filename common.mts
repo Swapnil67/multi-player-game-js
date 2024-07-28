@@ -6,6 +6,10 @@ export const WORLD_HEIGHT = 800;
 export const PLAYER_SIZE = 30;
 export const PLAYER_SPEED = 500;
 
+const UINT8_SIZE = 1;
+const UINT32_SIZE = 4;
+const FLOAT32_SIZE = 4;
+
 export type Direction = "left" | "right" | "up" | "down";
 export type Vector2 = { x: number; y: number };
 export type Moving = {
@@ -40,7 +44,11 @@ export interface Player {
   x: number;
   y: number;
   moving: Moving;
-  style: string;
+  hue: number;
+}
+
+export enum MessageKind {
+  Hello,
 }
 
 export interface Hello {
@@ -48,8 +56,68 @@ export interface Hello {
   id: number;
   x: number;
   y: number;
-  style: string;
+  hue: number;
 }
+
+interface Field {
+  offset: number;
+  size: number;
+  read(view: DataView, baseOffset: number): number;
+  write(view: DataView, baseOffset: number, value: number): void;
+}
+
+function allocUint8Field(allocator: { iota: number }): Field {
+  const offset = allocator.iota;
+  const size = UINT8_SIZE;
+  allocator.iota += size;
+  return {
+    offset,
+    size,
+    read: (view, baseOffset) => view.getUint8(baseOffset + offset),
+    write: (view, baseOffset, value) =>
+      view.setUint8(baseOffset + offset, value),
+  };
+}
+
+function allocUint32Field(allocator: { iota: number }): Field {
+  const offset = allocator.iota;
+  const size = UINT32_SIZE;
+  allocator.iota += size;
+  return {
+    offset,
+    size,
+    read: (view, baseOffset) => view.getUint32(baseOffset + offset, true),
+    write: (view, baseOffset, value) =>
+      view.setUint32(baseOffset + offset, value, true),
+  };
+}
+
+function allocFloat32Field(allocator: { iota: number }): Field {
+  const offset = allocator.iota;
+  const size = FLOAT32_SIZE;
+  allocator.iota += size;
+  return {
+    offset,
+    size,
+    read: (view, baseOffset) => view.getFloat32(baseOffset + offset, true),
+    write: (view, baseOffset, value) =>
+      view.setFloat32(baseOffset + offset, value, true),
+  };
+}
+
+// * Definition of structure in javascript
+// * [kind: Uint8] [id: Uint32] [x: Float32] [y: Float32] [hue: Uint8]
+export const HelloStruct = (() => {
+  const allocator = { iota: 0 };
+  return {
+    kind: allocUint8Field(allocator),
+    id: allocUint32Field(allocator),
+    x: allocFloat32Field(allocator),
+    y: allocFloat32Field(allocator),
+    hue: allocUint8Field(allocator),
+    size: allocator.iota,
+  };
+})();
 
 export function isHello(arg: any): arg is Hello {
   return arg && arg.kind == "Hello" && isNumber(arg.id);
@@ -60,7 +128,7 @@ export interface PlayerJoined {
   id: number;
   x: number;
   y: number;
-  style: string;
+  hue: number;
 }
 
 export function isPlayerJoined(arg: any): arg is PlayerJoined {
@@ -70,7 +138,7 @@ export function isPlayerJoined(arg: any): arg is PlayerJoined {
     isNumber(arg.id) &&
     isNumber(arg.x) &&
     isNumber(arg.y) &&
-    isString(arg.style)
+    isNumber(arg.hue)
   );
 }
 

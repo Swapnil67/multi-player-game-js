@@ -36,7 +36,7 @@ function createBot(): Bot {
           id: message.id,
           x: message.x,
           y: message.y,
-          style: message.style,
+          hue: message.hue,
           moving: {
             left: false,
             right: false,
