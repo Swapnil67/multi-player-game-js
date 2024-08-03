@@ -9,10 +9,10 @@ import {
 } from "./common.mjs";
 
 const DIRECTION_KEYS: { [key: string]: Direction } = {
-  ArrowLeft: "left",
-  ArrowRight: "right",
-  ArrowUp: "up",
-  ArrowDown: "down",
+  ArrowLeft: Direction.Left,
+  ArrowRight: Direction.Right,
+  ArrowUp: Direction.Up,
+  ArrowDown: Direction.Down,
 };
 
 const host = window.location.hostname;
@@ -57,12 +57,7 @@ const url = `ws://${host}:6970`;
             id: common.HelloStruct.id.read(view, 0),
             x: common.HelloStruct.x.read(view, 0),
             y: common.HelloStruct.y.read(view, 0),
-            moving: {
-              left: false,
-              right: false,
-              up: false,
-              down: false,
-            },
+            moving: 0,
             hue: (common.HelloStruct.hue.read(view, 0) / 256) * 360,
           };
           players.set(me.id, me);
@@ -92,9 +87,7 @@ const url = `ws://${host}:6970`;
             id: common.PlayerJoinedStruct.id.read(view, 0),
             x: common.PlayerJoinedStruct.x.read(view, 0),
             y: common.PlayerJoinedStruct.y.read(view, 0),
-            moving: common.movingFromMask(
-              common.PlayerJoinedStruct.moving.read(view, 0)
-            ),
+            moving: common.PlayerJoinedStruct.moving.read(view, 0),
             hue: (common.PlayerJoinedStruct.hue.read(view, 0) / 256) * 360,
           };
           players.set(newPlayer.id, newPlayer);
@@ -122,7 +115,7 @@ const url = `ws://${host}:6970`;
           const x = common.PlayerMovingStruct.x.read(view, 0);
           const y = common.PlayerMovingStruct.y.read(view, 0);
           const moving = common.PlayerMovingStruct.moving.read(view, 0);
-          common.setMovingMask(player.moving, moving);
+          player.moving = moving;
           player.x = x;
           player.y = y;
           // console.log("Player ", player, " moving ", moving);
@@ -169,7 +162,6 @@ const url = `ws://${host}:6970`;
       if (!e.repeat) {
         const direction = DIRECTION_KEYS[e.code];
         if (direction !== undefined) {
-          me.moving[direction] = true;
           const view = new DataView(
             new ArrayBuffer(common.AmmaMovingStruct.size)
           );
@@ -178,11 +170,8 @@ const url = `ws://${host}:6970`;
             0,
             common.MessageKind.AmmaMoving
           );
-          common.AmmaMovingStruct.moving.write(
-            view,
-            0,
-            common.movingMask(me.moving)
-          );
+          common.AmmaMovingStruct.start.write(view, 0, 1);
+          common.AmmaMovingStruct.direction.write(view, 0, direction);
           ws.send(view);
         }
       }
@@ -195,7 +184,6 @@ const url = `ws://${host}:6970`;
       if (!e.repeat) {
         const direction = DIRECTION_KEYS[e.code];
         if (direction !== undefined) {
-          me.moving[direction] = false;
           const view = new DataView(
             new ArrayBuffer(common.AmmaMovingStruct.size)
           );
@@ -204,11 +192,8 @@ const url = `ws://${host}:6970`;
             0,
             common.MessageKind.AmmaMoving
           );
-          common.AmmaMovingStruct.moving.write(
-            view,
-            0,
-            common.movingMask(me.moving)
-          );
+          common.AmmaMovingStruct.start.write(view, 0, 0);
+          common.AmmaMovingStruct.direction.write(view, 0, direction);
           ws.send(view);
         }
       }

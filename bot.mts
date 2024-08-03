@@ -37,12 +37,7 @@ function createBot(): Bot {
             id: common.HelloStruct.id.read(view, 0),
             x: common.HelloStruct.x.read(view, 0),
             y: common.HelloStruct.y.read(view, 0),
-            moving: {
-              left: false,
-              right: false,
-              up: false,
-              down: false,
-            },
+            moving: 0,
             hue: (common.HelloStruct.hue.read(view, 0) / 256) * 360,
           };
           turn();
@@ -74,9 +69,9 @@ function createBot(): Bot {
             const id = common.PlayerMovingStruct.id.read(view, 0);
             const x = common.PlayerMovingStruct.x.read(view, 0);
             const y = common.PlayerMovingStruct.y.read(view, 0);
-            const mask = common.PlayerMovingStruct.moving.read(view, 0);
+            const moving = common.PlayerMovingStruct.moving.read(view, 0);
             if (bot.me.id === id) {
-              common.setMovingMask(bot.me.moving, mask);
+              bot.me.moving = moving;
               bot.me.x = x;
               bot.me.y = y;
             }
@@ -88,95 +83,32 @@ function createBot(): Bot {
 
   function turn() {
     if (bot.me !== undefined) {
-      // * Full Stop
-      let direction: Direction;
-      for (direction in bot.me.moving) {
-        if (bot.me.moving[direction]) {
-          bot.me.moving[direction] = false;
-          const view = new DataView(
-            new ArrayBuffer(common.AmmaMovingStruct.size)
-          );
-          common.AmmaMovingStruct.kind.write(
-            view,
-            0,
-            common.MessageKind.AmmaMoving
-          );
-          common.AmmaMovingStruct.moving.write(
-            view,
-            0,
-            common.movingMask(bot.me.moving)
-          );
-          bot.ws.send(view);
-        }
-      }
-
-      // * New Direction
-      const directions = Object.keys(bot.me.moving) as Direction[];
-      direction = directions[Math.floor(Math.random() * directions.length)];
-      bot.timeoutBeforeTurn =
-        (Math.random() * common.WORLD_WIDTH * 0.5) / common.PLAYER_SPEED;
-      bot.me.moving[direction] = true;
-      const view = new DataView(new ArrayBuffer(common.AmmaMovingStruct.size));
+      const view = new DataView(new ArrayBuffer(common.AmmaMovingStruct.size))
       common.AmmaMovingStruct.kind.write(
         view,
         0,
         common.MessageKind.AmmaMoving
       );
-      common.AmmaMovingStruct.moving.write(
-        view,
-        0,
-        common.movingMask(bot.me.moving)
-      );
-      bot.ws.send(view);
 
-      // bot.timeoutBeforeTurn = undefined;
-      // do {
-      //   const dx = bot.goalX - bot.me.x;
-      //   const dy = bot.goalY - bot.me.y;
-      //   if (Math.abs(dx) > EPS) {
-      //     if (dx > 0) {
-      //       // * Move to right
-      //       bot.me.moving["right"] = true;
-      //       common.sendMessage<AmmaMoving>(bot.ws, {
-      //         kind: "AmmaMoving",
-      //         start: true,
-      //         direction: "right",
-      //       });
-      //     } else {
-      //       // * Move to left
-      //       bot.me.moving["left"] = true;
-      //       common.sendMessage<AmmaMoving>(bot.ws, {
-      //         kind: "AmmaMoving",
-      //         start: true,
-      //         direction: "left",
-      //       });
-      //     }
-      //     // * Time took to travel
-      //     // * time = distance / speed
-      //     bot.timeoutBeforeTurn = Math.abs(dx) / common.PLAYER_SPEED;
-      //   } else if (Math.abs(dy) > EPS) {
-      //     if (dy > 0) {
-      //       // * Move to down
-      //       common.sendMessage<AmmaMoving>(bot.ws, {
-      //         kind: "AmmaMoving",
-      //         start: true,
-      //         direction: "down",
-      //       });
-      //     } else {
-      //       // * Move to up
-      //       common.sendMessage<AmmaMoving>(bot.ws, {
-      //         kind: "AmmaMoving",
-      //         start: true,
-      //         direction: "up",
-      //       });
-      //     }
-      //     bot.timeoutBeforeTurn = Math.abs(dy) / common.PLAYER_SPEED;
-      //   }
-      //   if (bot.timeoutBeforeTurn === undefined) {
-      //     bot.goalX = Math.random() * common.WORLD_WIDTH;
-      //     bot.goalY = Math.random() * common.WORLD_HEIGHT;
-      //   }
-      // } while (bot.timeoutBeforeTurn === undefined);
+      // * Full Stop
+      for (let direction = 0; direction < common.Direction.Count; ++direction) {
+        if((bot.me.moving >>direction)&1){
+          common.AmmaMovingStruct.direction.write(view, 0, direction)
+          common.AmmaMovingStruct.start.write(view, 0, 0)
+          bot.ws.send(view);
+        } 
+      }
+
+      // * New direction
+      const direction = Math.floor(Math.random() * common.Direction.Count);
+      bot.timeoutBeforeTurn =
+      (Math.random() * common.WORLD_WIDTH * 0.5) / common.PLAYER_SPEED; 
+
+
+      // * Sync
+      common.AmmaMovingStruct.direction.write(view, 0, direction)
+      common.AmmaMovingStruct.start.write(view, 0, 1)
+      bot.ws.send(view);
     }
   }
 

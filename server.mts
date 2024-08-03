@@ -99,6 +99,7 @@ function printStats() {
 
 interface PlayerOnServer extends Player {
   ws: WebSocket;
+  newMoving: number;
   moved: boolean;
 }
 
@@ -130,13 +131,9 @@ wss.on("connection", (ws) => {
     id,
     x,
     y,
-    moving: {
-      left: false,
-      right: false,
-      up: false,
-      down: false,
-    },
     hue,
+    moving: 0,
+    newMoving: 0,
     moved: false,
   };
   players.set(id, player);
@@ -151,15 +148,20 @@ wss.on("connection", (ws) => {
     messagesRecievedWithInTick += 1;
 
     if (event.data instanceof ArrayBuffer) {
-      const view = new DataView(event.data)
+      const view = new DataView(event.data);
       if (
         common.AmmaMovingStruct.size === view.byteLength &&
         common.AmmaMovingStruct.kind.read(view, 0) ===
           common.MessageKind.AmmaMoving
       ) {
         // * Server receives AmmaMoving & then Transforms it into player moving
-        common.setMovingMask(player.moving, common.AmmaMovingStruct.moving.read(view, 0))
-        player.moved = true;
+        const direction = common.AmmaMovingStruct.direction.read(view, 0);
+        const start = common.AmmaMovingStruct.start.read(view, 0);
+        if (start) {
+          player.newMoving = player.newMoving | (1 << direction);
+        } else {
+          player.newMoving = player.newMoving & ~(1 << direction);
+        }
       } else {
         stats.bogusMessages += 1;
         console.log(`Received bogus message from client ${id}`, view);
@@ -234,11 +236,7 @@ function tick() {
             0,
             Math.floor((otherPlayer.hue / 360) * 256)
           );
-          common.PlayerJoinedStruct.moving.write(
-            view,
-            0,
-            common.movingMask(otherPlayer.moving)
-          );
+          common.PlayerJoinedStruct.moving.write(view, 0, otherPlayer.moving);
           joinedPlayer.ws.send(view);
           bytesSentCounter += view.byteLength;
           messageSentCounter += 1;
@@ -267,11 +265,7 @@ function tick() {
         0,
         Math.floor((joinedPlayer.hue / 360) * 256)
       );
-      common.PlayerJoinedStruct.moving.write(
-        view,
-        0,
-        common.movingMask(joinedPlayer.moving)
-      );
+      common.PlayerJoinedStruct.moving.write(view, 0, joinedPlayer.moving);
       players.forEach((otherPlayer) => {
         // * joined player should already know about themselves
         if (joinedId !== otherPlayer.id) {
@@ -297,7 +291,8 @@ function tick() {
 
   // * Notifiying about the movements
   players.forEach((player) => {
-    if (player.moved) {
+    if (player.newMoving !== player.moving) {
+      player.moving = player.newMoving;
       const view = new DataView(
         new ArrayBuffer(common.PlayerMovingStruct.size)
       );
@@ -309,11 +304,7 @@ function tick() {
       common.PlayerMovingStruct.id.write(view, 0, player.id);
       common.PlayerMovingStruct.x.write(view, 0, player.x);
       common.PlayerMovingStruct.y.write(view, 0, player.y);
-      common.PlayerMovingStruct.moving.write(
-        view,
-        0,
-        common.movingMask(player.moving)
-      );
+      common.PlayerMovingStruct.moving.write(view, 0, player.moving);
 
       // * Notify everyone who moved
       players.forEach((otherPlayer) => {
