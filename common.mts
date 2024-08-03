@@ -1,5 +1,8 @@
 import { WebSocket, WebSocketServer } from "ws";
 
+
+export const START_MOVING = 1;
+export const STOP_MOVING = 0;
 export const SERVER_PORT = 6970;
 export const WORLD_WIDTH = 600;
 export const WORLD_HEIGHT = 800;
@@ -55,7 +58,7 @@ interface Field {
   offset: number;
   size: number;
   read(view: DataView, baseOffset: number): number;
-  write(view: DataView, baseOffset: number, value: number): void;
+  write(view: DataView, value: number): void;
 }
 
 function allocUint8Field(allocator: { iota: number }): Field {
@@ -66,8 +69,8 @@ function allocUint8Field(allocator: { iota: number }): Field {
     offset,
     size,
     read: (view, baseOffset) => view.getUint8(baseOffset + offset),
-    write: (view, baseOffset, value) =>
-      view.setUint8(baseOffset + offset, value),
+    write: (view, value) =>
+      view.setUint8(0 + offset, value),
   };
 }
 
@@ -79,8 +82,8 @@ function allocUint32Field(allocator: { iota: number }): Field {
     offset,
     size,
     read: (view, baseOffset) => view.getUint32(baseOffset + offset, true),
-    write: (view, baseOffset, value) =>
-      view.setUint32(baseOffset + offset, value, true),
+    write: (view, value) =>
+      view.setUint32(0 + offset, value, true),
   };
 }
 
@@ -92,8 +95,8 @@ function allocFloat32Field(allocator: { iota: number }): Field {
     offset,
     size,
     read: (view, baseOffset) => view.getFloat32(baseOffset + offset, true),
-    write: (view, baseOffset, value) =>
-      view.setFloat32(baseOffset + offset, value, true),
+    write: (view, value) =>
+      view.setFloat32(0 + offset, value, true),
   };
 }
 
@@ -183,7 +186,6 @@ function properMod(a: number, b: number): number {
 }
 
 export function updatePlayer(player: Player, deltaTime: number) {
-  let dir: Direction;
   let dx = 0,
     dy = 0;
   for (let dir = 0; dir < Direction.Count; dir++) {

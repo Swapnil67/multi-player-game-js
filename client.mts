@@ -1,6 +1,5 @@
 import * as common from "./common.mjs";
 import {
-  type Hello,
   Player,
   Direction,
   WORLD_HEIGHT,
@@ -77,6 +76,7 @@ const url = `ws://${host}:6970`;
       }
     } else {
       if (event.data instanceof ArrayBuffer) {
+        // * Player joined
         const view = new DataView(event.data);
         if (
           common.PlayerJoinedStruct.size === view.byteLength &&
@@ -157,6 +157,7 @@ const url = `ws://${host}:6970`;
     window.requestAnimationFrame(frame);
   });
 
+  // * Player started moving in some direction
   window.addEventListener("keydown", (e) => {
     if (ws !== undefined && me !== undefined) {
       if (!e.repeat) {
@@ -167,18 +168,17 @@ const url = `ws://${host}:6970`;
           );
           common.AmmaMovingStruct.kind.write(
             view,
-            0,
             common.MessageKind.AmmaMoving
           );
-          common.AmmaMovingStruct.start.write(view, 0, 1);
-          common.AmmaMovingStruct.direction.write(view, 0, direction);
+          common.AmmaMovingStruct.start.write(view, common.START_MOVING);
+          common.AmmaMovingStruct.direction.write(view, direction);
           ws.send(view);
         }
       }
     }
   });
 
-  // TODO: When the window loses the focus, reset all the controls
+  // * Player stopped moving 
   window.addEventListener("keyup", (e) => {
     if (ws !== undefined && me !== undefined) {
       if (!e.repeat) {
@@ -189,11 +189,10 @@ const url = `ws://${host}:6970`;
           );
           common.AmmaMovingStruct.kind.write(
             view,
-            0,
             common.MessageKind.AmmaMoving
           );
-          common.AmmaMovingStruct.start.write(view, 0, 0);
-          common.AmmaMovingStruct.direction.write(view, 0, direction);
+          common.AmmaMovingStruct.start.write(view, common.STOP_MOVING);
+          common.AmmaMovingStruct.direction.write(view, direction);
           ws.send(view);
         }
       }

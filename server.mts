@@ -203,13 +203,12 @@ function tick() {
     if (joinedPlayer !== undefined) {
       // * The greetings
       const view = new DataView(new ArrayBuffer(common.HelloStruct.size));
-      common.HelloStruct.kind.write(view, 0, common.MessageKind.Hello);
-      common.HelloStruct.id.write(view, 0, joinedPlayer.id);
-      common.HelloStruct.x.write(view, 0, joinedPlayer.x);
-      common.HelloStruct.y.write(view, 0, joinedPlayer.y);
+      common.HelloStruct.kind.write(view, common.MessageKind.Hello);
+      common.HelloStruct.id.write(view, joinedPlayer.id);
+      common.HelloStruct.x.write(view, joinedPlayer.x);
+      common.HelloStruct.y.write(view, joinedPlayer.y);
       common.HelloStruct.hue.write(
         view,
-        0,
         Math.floor((joinedPlayer.hue / 360) * 256)
       );
       joinedPlayer.ws.send(view);
@@ -225,18 +224,16 @@ function tick() {
           );
           common.PlayerJoinedStruct.kind.write(
             view,
-            0,
             common.MessageKind.PlayerJoined
           );
-          common.PlayerJoinedStruct.id.write(view, 0, otherPlayer.id);
-          common.PlayerJoinedStruct.x.write(view, 0, otherPlayer.x);
-          common.PlayerJoinedStruct.y.write(view, 0, otherPlayer.y);
+          common.PlayerJoinedStruct.id.write(view, otherPlayer.id);
+          common.PlayerJoinedStruct.x.write(view, otherPlayer.x);
+          common.PlayerJoinedStruct.y.write(view, otherPlayer.y);
           common.PlayerJoinedStruct.hue.write(
             view,
-            0,
             Math.floor((otherPlayer.hue / 360) * 256)
           );
-          common.PlayerJoinedStruct.moving.write(view, 0, otherPlayer.moving);
+          common.PlayerJoinedStruct.moving.write(view, otherPlayer.moving);
           joinedPlayer.ws.send(view);
           bytesSentCounter += view.byteLength;
           messageSentCounter += 1;
@@ -254,18 +251,16 @@ function tick() {
       );
       common.PlayerJoinedStruct.kind.write(
         view,
-        0,
         common.MessageKind.PlayerJoined
       );
-      common.PlayerJoinedStruct.id.write(view, 0, joinedPlayer.id);
-      common.PlayerJoinedStruct.x.write(view, 0, joinedPlayer.x);
-      common.PlayerJoinedStruct.y.write(view, 0, joinedPlayer.y);
+      common.PlayerJoinedStruct.id.write(view, joinedPlayer.id);
+      common.PlayerJoinedStruct.x.write(view, joinedPlayer.x);
+      common.PlayerJoinedStruct.y.write(view, joinedPlayer.y);
       common.PlayerJoinedStruct.hue.write(
         view,
-        0,
         Math.floor((joinedPlayer.hue / 360) * 256)
       );
-      common.PlayerJoinedStruct.moving.write(view, 0, joinedPlayer.moving);
+      common.PlayerJoinedStruct.moving.write(view, joinedPlayer.moving);
       players.forEach((otherPlayer) => {
         // * joined player should already know about themselves
         if (joinedId !== otherPlayer.id) {
@@ -280,8 +275,8 @@ function tick() {
   // * Notififying about who left
   leftIds.forEach((leftId) => {
     const view = new DataView(new ArrayBuffer(common.PlayerLeftStruct.size));
-    common.PlayerLeftStruct.kind.write(view, 0, common.MessageKind.PlayerLeft);
-    common.PlayerLeftStruct.id.write(view, 0, leftId);
+    common.PlayerLeftStruct.kind.write(view, common.MessageKind.PlayerLeft);
+    common.PlayerLeftStruct.id.write(view, leftId);
     players.forEach((player) => {
       player.ws.send(view);
       bytesSentCounter += view.byteLength;
@@ -298,13 +293,12 @@ function tick() {
       );
       common.PlayerMovingStruct.kind.write(
         view,
-        0,
         common.MessageKind.PlayerMoving
       );
-      common.PlayerMovingStruct.id.write(view, 0, player.id);
-      common.PlayerMovingStruct.x.write(view, 0, player.x);
-      common.PlayerMovingStruct.y.write(view, 0, player.y);
-      common.PlayerMovingStruct.moving.write(view, 0, player.moving);
+      common.PlayerMovingStruct.id.write(view, player.id);
+      common.PlayerMovingStruct.x.write(view, player.x);
+      common.PlayerMovingStruct.y.write(view, player.y);
+      common.PlayerMovingStruct.moving.write(view, player.moving);
 
       // * Notify everyone who moved
       players.forEach((otherPlayer) => {

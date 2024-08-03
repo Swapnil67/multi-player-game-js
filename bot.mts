@@ -84,17 +84,13 @@ function createBot(): Bot {
   function turn() {
     if (bot.me !== undefined) {
       const view = new DataView(new ArrayBuffer(common.AmmaMovingStruct.size))
-      common.AmmaMovingStruct.kind.write(
-        view,
-        0,
-        common.MessageKind.AmmaMoving
-      );
+      common.AmmaMovingStruct.kind.write(view, common.MessageKind.AmmaMoving);
 
       // * Full Stop
       for (let direction = 0; direction < common.Direction.Count; ++direction) {
         if((bot.me.moving >>direction)&1){
-          common.AmmaMovingStruct.direction.write(view, 0, direction)
-          common.AmmaMovingStruct.start.write(view, 0, 0)
+          common.AmmaMovingStruct.direction.write(view, direction)
+          common.AmmaMovingStruct.start.write(view, common.STOP_MOVING)
           bot.ws.send(view);
         } 
       }
@@ -106,8 +102,8 @@ function createBot(): Bot {
 
 
       // * Sync
-      common.AmmaMovingStruct.direction.write(view, 0, direction)
-      common.AmmaMovingStruct.start.write(view, 0, 1)
+      common.AmmaMovingStruct.direction.write(view, direction)
+      common.AmmaMovingStruct.start.write(view, common.START_MOVING);
       bot.ws.send(view);
     }
   }
