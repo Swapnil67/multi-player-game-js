@@ -63,10 +63,10 @@ function createBot(): Bot {
         bot.ws.close();
       }
     } else {
+      const message = JSON.parse(event.data.toString());
       if (event.data instanceof ArrayBuffer) {
         // * PlayerJoined Buffer
       } else {
-        const message = JSON.parse(event.data.toString());
         if (common.isPlayerMoving(message)) {
           if (message.id === bot.me.id) {
             bot.me.x = message.x;

@@ -19,9 +19,10 @@ export type Moving = {
 // TODO: it's really easy to forget to update this arrray if the definition of type direction changes
 const directions: Direction[] = ["left", "right", "up", "down"];
 
+// * Converts moving obj to moving binary 
 export function movingMask(moving: Moving): number {
   let mask = 0;
-  for (let i = 0; i < directions.length; i++) {
+  for (let i = 0; i < directions.length; ++i) {
     if (moving[directions[i]]) {
       mask = mask | (1 << i);
     }
@@ -29,11 +30,13 @@ export function movingMask(moving: Moving): number {
   return mask;
 }
 
+// * Converts moving binary to moving obj 
 export function setMovingMask(moving: Moving, mask: number) {
-  for (let i = 0; i < directions.length; i++) {
+  for (let i = 0; i < directions.length; ++i) {
     // console.log(mask, " ", i, " -> ", (mask << i)&1);
-    moving[directions[i]] = ((mask<<i)&1) !== 0;
+    moving[directions[i]] = ((mask >> i) & 1) !== 0;
   }
+  // console.log("moving ", moving);
 }
 
 export function movingFromMask(mask: number): Moving {
@@ -81,7 +84,8 @@ export interface Player {
 export enum MessageKind {
   Hello,
   PlayerJoined,
-  PlayerLeft
+  PlayerLeft,
+  PlayerMoving
 }
 
 interface Field {
@@ -161,25 +165,6 @@ export const HelloStruct = (() => {
 
 // * Player Joined Message
 
-export interface PlayerJoined {
-  kind: "PlayerJoined";
-  id: number;
-  x: number;
-  y: number;
-  hue: number;
-}
-
-export function isPlayerJoined(arg: any): arg is PlayerJoined {
-  return (
-    arg &&
-    arg.kind == "PlayerJoined" &&
-    isNumber(arg.id) &&
-    isNumber(arg.x) &&
-    isNumber(arg.y) &&
-    isNumber(arg.hue)
-  );
-}
-
 export const PlayerJoinedStruct = (() => {
   const allocator = { iota: 0 };
   return {
@@ -204,15 +189,6 @@ export const PlayerLeftStruct = (() => {
   };
 })();
 
-export interface _PlayerLeft {
-  kind: "PlayerLeft";
-  id: number;
-}
-
-export function isPlayerLeft(arg: any): arg is _PlayerLeft {
-  return arg && arg.kind == "PlayerLeft" && isNumber(arg.id);
-}
-
 // * Clients sends to server when it starts moving
 export interface AmmaMoving {
   kind: "AmmaMoving";
@@ -229,29 +205,19 @@ export function isAmmaMoving(arg: any): arg is AmmaMoving {
   );
 }
 
-// * Server sends to other connected clients with x & y values
-export interface PlayerMoving {
-  kind: "PlayerMoving";
-  id: number;
-  x: number;
-  y: number;
-  start: boolean;
-  direction: Direction;
-}
+// * Player Moving
 
-export function isPlayerMoving(arg: any): arg is PlayerMoving {
-  return (
-    arg &&
-    arg.kind == "PlayerMoving" &&
-    isNumber(arg.id) &&
-    isNumber(arg.x) &&
-    isNumber(arg.y) &&
-    isBoolean(arg.start) &&
-    isDirection(arg.direction)
-  );
-}
-
-export type Events = PlayerJoined | _PlayerLeft | PlayerMoving;
+export const PlayerMovingStruct = (() => {
+  const allocator = { iota: 0 };
+  return {
+    kind: allocUint8Field(allocator),
+    id: allocUint32Field(allocator),
+    x: allocFloat32Field(allocator),
+    y: allocFloat32Field(allocator),
+    moving: allocUint8Field(allocator),
+    size: allocator.iota,
+  };
+})();
 
 function properMod(a: number, b: number): number {
   return ((a % b) + b) % b;

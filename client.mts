@@ -45,6 +45,7 @@ const url = `ws://${host}:6970`;
 
   ws.addEventListener("message", (event) => {
     // console.log("WEBSOCKET MESSAGE ", event);
+    // * Hello Greeting Message
     if (me === undefined) {
       if (event.data instanceof ArrayBuffer) {
         const view = new DataView(event.data);
@@ -82,8 +83,6 @@ const url = `ws://${host}:6970`;
     } else {
       if (event.data instanceof ArrayBuffer) {
         const view = new DataView(event.data);
-        console.log("view ", view);
-
         if (
           common.PlayerJoinedStruct.size === view.byteLength &&
           common.PlayerJoinedStruct.kind.read(view, 0) ===
@@ -106,32 +105,29 @@ const url = `ws://${host}:6970`;
         ) {
           const id = common.PlayerLeftStruct.id.read(view, 0);
           players.delete(id);
-        } else {
-          console.error(
-            "Received bogus message from server. Incorrect `PlayerJoined` message ",
-            view
-          );
-          ws?.close();
-        }
-      } else {
-        const message = JSON.parse(event.data);
-        if (common.isPlayerMoving(message)) {
-          console.log("Player Moving ", message);
-          const player = players.get(message.id);
+        } else if (
+          common.PlayerMovingStruct.size === view.byteLength &&
+          common.PlayerMovingStruct.kind.read(view, 0) ===
+            common.MessageKind.PlayerMoving
+        ) {
+          const id = common.PlayerMovingStruct.id.read(view, 0);
+          const player = players.get(id);
           if (player === undefined) {
             console.log(
-              `Received bogus message from server. We don't know anything about player with the id ${message.id} `,
-              message
+              `Received bogus message from server. We don't know anything about player with the id ${id} `
             );
             ws?.close();
             return;
           }
-          player.moving[message.direction] = message.start;
-          // * Synchronize the moving player positions
-          player.x = message.x;
-          player.y = message.y;
+          const x = common.PlayerMovingStruct.x.read(view, 0);
+          const y = common.PlayerMovingStruct.y.read(view, 0);
+          const moving = common.PlayerMovingStruct.moving.read(view, 0);
+          common.setMovingMask(player.moving, moving);
+          player.x = x;
+          player.y = y;
+          // console.log("Player ", player, " moving ", moving);
         } else {
-          console.log("Received bogus message from server ", message);
+          console.error("Received bogus message from server.", view);
           ws?.close();
         }
       }

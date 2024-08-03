@@ -1,14 +1,6 @@
 import { WebSocket, WebSocketServer } from "ws";
 import * as common from "./common.mjs";
-import {
-  type Hello,
-  Player,
-  Events,
-  Direction,
-  _PlayerLeft,
-  PlayerMoving,
-  PlayerJoined,
-} from "./common.mjs";
+import { Player } from "./common.mjs";
 
 const SERVER_FPS = 30;
 const SERVER_LIMIT = 69;
@@ -47,10 +39,6 @@ const stats: Stats = {
   playersLeft: 0,
   bogusMessages: 0,
 };
-
-function randomStyle() {
-  return `hsl(${Math.floor(Math.random() * 360)} 80%, 50%)`;
-}
 
 function randomHue() {
   return Math.floor(Math.random() * 360);
@@ -109,14 +97,16 @@ function printStats() {
   console.log("Uptime (secs) ", (performance.now() - stats.startedAt) / 1000);
 }
 
-interface PlayerWithSocket extends Player {
+interface PlayerOnServer extends Player {
   ws: WebSocket;
+  moved: boolean;
 }
 
-const players = new Map<number, PlayerWithSocket>();
+const players = new Map<number, PlayerOnServer>();
 let idCounter = 0;
 let bytesReceivedWithinTick = 0;
-const eventQueue: Array<Events> = [];
+let messagesRecievedWithInTick = 0;
+// const eventQueue: Array<Events> = [];
 const joinedIds: Set<number> = new Set();
 const leftIds: Set<number> = new Set();
 
@@ -146,25 +136,19 @@ wss.on("connection", (ws) => {
       down: false,
     },
     hue,
+    moved: false,
   };
   players.set(id, player);
   joinedIds.add(id);
   console.log(`Player ${id} Connected!`);
-
-  const playerJoinedMessage: PlayerJoined = {
-    kind: "PlayerJoined",
-    id,
-    x,
-    y,
-    hue,
-  };
-  eventQueue.push(playerJoinedMessage);
   stats.playersJoined += 1;
 
   ws.addEventListener("message", (event) => {
     stats.messagesReceived += 1;
     stats.bytesReceived += event.data.toString().length;
     bytesReceivedWithinTick += event.data.toString().length;
+    messagesRecievedWithInTick += 1;
+
     let message;
     try {
       message = JSON.parse(event.data.toString());
@@ -178,15 +162,8 @@ wss.on("connection", (ws) => {
     // * Server receives AmmaMoving & then Transforms it into player moving
     if (common.isAmmaMoving(message)) {
       // console.log(`Player ${id} is moving `, message);
-      const movingMessage: common.PlayerMoving = {
-        kind: "PlayerMoving",
-        id,
-        x: player.x,
-        y: player.y,
-        start: message.start,
-        direction: message.direction,
-      };
-      eventQueue.push(movingMessage);
+      player.moving[message.direction] = message.start;
+      player.moved = true;
     } else {
       stats.bogusMessages += 1;
       console.log(`Received bogus message from client ${id}`, message);
@@ -199,10 +176,11 @@ wss.on("connection", (ws) => {
     console.log(`Player ${id} disconnected!`);
     players.delete(id);
     stats.playersLeft += 1;
-    eventQueue.push({
-      id,
-      kind: "PlayerLeft",
-    });
+    // * This is collapsing of events within single tick
+    // * If player joined & left within single tick then no point to notifiy
+    if (!joinedIds.delete(id)) {
+      leftIds.add(id);
+    }
   });
 });
 
@@ -210,27 +188,6 @@ function tick() {
   const beginTickTime = performance.now();
   let messageSentCounter = 0;
   let bytesSentCounter = 0;
-
-  joinedIds.clear();
-  leftIds.clear();
-
-  // * This makes sure that if somebody joined and left within a single tick they are never handled
-  for (let event of eventQueue) {
-    switch (event.kind) {
-      case "PlayerJoined":
-        {
-          joinedIds.add(event.id);
-        }
-        break;
-      case "PlayerLeft":
-        {
-          if (!joinedIds.delete(event.id)) {
-            leftIds.add(event.id);
-          }
-        }
-        break;
-    }
-  }
 
   // * Greeting all the joined players & notifiying them about other players
   joinedIds.forEach((joinedId) => {
@@ -334,38 +291,53 @@ function tick() {
   });
 
   // * Notifiying about the movements
-  for (let event of eventQueue) {
-    switch (event.kind) {
-      case "PlayerMoving": {
-        const player = players.get(event.id);
-        if (player !== undefined) {
-          player.moving[event.direction] = event.start;
-          const eventString = JSON.stringify(event);
-          players.forEach((player) => {
-            player.ws.send(eventString);
-            messageSentCounter += 1;
-            bytesSentCounter += eventString.length;
-          });
-        }
-      }
+  players.forEach((player) => {
+    if (player.moved) {
+      const view = new DataView(
+        new ArrayBuffer(common.PlayerMovingStruct.size)
+      );
+      common.PlayerMovingStruct.kind.write(
+        view,
+        0,
+        common.MessageKind.PlayerMoving
+      );
+      common.PlayerMovingStruct.id.write(view, 0, player.id);
+      common.PlayerMovingStruct.x.write(view, 0, player.x);
+      common.PlayerMovingStruct.y.write(view, 0, player.y);
+      common.PlayerMovingStruct.moving.write(
+        view,
+        0,
+        common.movingMask(player.moving)
+      );      
+
+      // * Notify everyone who moved
+      players.forEach((otherPlayer) => {
+        otherPlayer.ws.send(view);
+        bytesSentCounter += view.byteLength;
+        messageSentCounter += 1;
+      });
+
+      player.moved = false;
     }
-  }
+  });
 
   // * Simulating the world for one server tick
   players.forEach((player) => common.updatePlayer(player, 1 / SERVER_FPS));
 
-  stats.ticksCount += 1;
   const tickTime = (performance.now() - beginTickTime) / 1000;
+  stats.ticksCount += 1;
   pushAverage(stats.tickTimes, tickTime);
   stats.messagesSent += messageSentCounter;
   pushAverage(stats.tickMessagesSent, messageSentCounter);
-  pushAverage(stats.tickMessagesReceived, eventQueue.length);
+  pushAverage(stats.tickMessagesReceived, messagesRecievedWithInTick);
   stats.bytesSent += bytesSentCounter;
   pushAverage(stats.tickBytesSent, bytesSentCounter);
   pushAverage(stats.tickBytesReceived, bytesReceivedWithinTick);
 
-  eventQueue.length = 0;
+  joinedIds.clear();
+  leftIds.clear();
   bytesReceivedWithinTick = 0;
+  messagesRecievedWithInTick = 0;
 
   // if (stats.ticksCount % SERVER_FPS == 0) {
   //   printStats();
