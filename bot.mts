@@ -1,6 +1,6 @@
 import { WebSocket } from "ws";
 import * as common from "./common.mjs";
-import type { Hello, Player, AmmaMoving, Direction } from "./common.mjs";
+import type { Hello, Player, Direction } from "./common.mjs";
 
 const EPS = 10;
 const BOT_FPS = 30;
@@ -82,73 +82,101 @@ function createBot(): Bot {
             }
           }
         }
-      } else {
       }
     }
   });
 
   function turn() {
     if (bot.me !== undefined) {
+      // * Full Stop
       let direction: Direction;
       for (direction in bot.me.moving) {
         if (bot.me.moving[direction]) {
           bot.me.moving[direction] = false;
-          common.sendMessage<AmmaMoving>(bot.ws, {
-            kind: "AmmaMoving",
-            start: false,
-            direction,
-          });
+          const view = new DataView(
+            new ArrayBuffer(common.AmmaMovingStruct.size)
+          );
+          common.AmmaMovingStruct.kind.write(
+            view,
+            0,
+            common.MessageKind.AmmaMoving
+          );
+          common.AmmaMovingStruct.moving.write(
+            view,
+            0,
+            common.movingMask(bot.me.moving)
+          );
+          bot.ws.send(view);
         }
       }
 
-      bot.timeoutBeforeTurn = undefined;
-      do {
-        const dx = bot.goalX - bot.me.x;
-        const dy = bot.goalY - bot.me.y;
-        if (Math.abs(dx) > EPS) {
-          if (dx > 0) {
-            // * Move to right
-            bot.me.moving["right"] = true;
-            common.sendMessage<AmmaMoving>(bot.ws, {
-              kind: "AmmaMoving",
-              start: true,
-              direction: "right",
-            });
-          } else {
-            // * Move to left
-            bot.me.moving["left"] = true;
-            common.sendMessage<AmmaMoving>(bot.ws, {
-              kind: "AmmaMoving",
-              start: true,
-              direction: "left",
-            });
-          }
-          // * Time took to travel
-          // * time = distance / speed
-          bot.timeoutBeforeTurn = Math.abs(dx) / common.PLAYER_SPEED;
-        } else if (Math.abs(dy) > EPS) {
-          if (dy > 0) {
-            // * Move to down
-            common.sendMessage<AmmaMoving>(bot.ws, {
-              kind: "AmmaMoving",
-              start: true,
-              direction: "down",
-            });
-          } else {
-            // * Move to up
-            common.sendMessage<AmmaMoving>(bot.ws, {
-              kind: "AmmaMoving",
-              start: true,
-              direction: "up",
-            });
-          }
-          bot.timeoutBeforeTurn = Math.abs(dy) / common.PLAYER_SPEED;
-        }
-        if (bot.timeoutBeforeTurn === undefined) {
-          bot.goalX = Math.random() * common.WORLD_WIDTH;
-          bot.goalY = Math.random() * common.WORLD_HEIGHT;
-        }
-      } while (bot.timeoutBeforeTurn === undefined);
+      // * New Direction
+      const directions = Object.keys(bot.me.moving) as Direction[];
+      direction = directions[Math.floor(Math.random() * directions.length)];
+      bot.timeoutBeforeTurn =
+        (Math.random() * common.WORLD_WIDTH * 0.5) / common.PLAYER_SPEED;
+      bot.me.moving[direction] = true;
+      const view = new DataView(new ArrayBuffer(common.AmmaMovingStruct.size));
+      common.AmmaMovingStruct.kind.write(
+        view,
+        0,
+        common.MessageKind.AmmaMoving
+      );
+      common.AmmaMovingStruct.moving.write(
+        view,
+        0,
+        common.movingMask(bot.me.moving)
+      );
+      bot.ws.send(view);
+
+      // bot.timeoutBeforeTurn = undefined;
+      // do {
+      //   const dx = bot.goalX - bot.me.x;
+      //   const dy = bot.goalY - bot.me.y;
+      //   if (Math.abs(dx) > EPS) {
+      //     if (dx > 0) {
+      //       // * Move to right
+      //       bot.me.moving["right"] = true;
+      //       common.sendMessage<AmmaMoving>(bot.ws, {
+      //         kind: "AmmaMoving",
+      //         start: true,
+      //         direction: "right",
+      //       });
+      //     } else {
+      //       // * Move to left
+      //       bot.me.moving["left"] = true;
+      //       common.sendMessage<AmmaMoving>(bot.ws, {
+      //         kind: "AmmaMoving",
+      //         start: true,
+      //         direction: "left",
+      //       });
+      //     }
+      //     // * Time took to travel
+      //     // * time = distance / speed
+      //     bot.timeoutBeforeTurn = Math.abs(dx) / common.PLAYER_SPEED;
+      //   } else if (Math.abs(dy) > EPS) {
+      //     if (dy > 0) {
+      //       // * Move to down
+      //       common.sendMessage<AmmaMoving>(bot.ws, {
+      //         kind: "AmmaMoving",
+      //         start: true,
+      //         direction: "down",
+      //       });
+      //     } else {
+      //       // * Move to up
+      //       common.sendMessage<AmmaMoving>(bot.ws, {
+      //         kind: "AmmaMoving",
+      //         start: true,
+      //         direction: "up",
+      //       });
+      //     }
+      //     bot.timeoutBeforeTurn = Math.abs(dy) / common.PLAYER_SPEED;
+      //   }
+      //   if (bot.timeoutBeforeTurn === undefined) {
+      //     bot.goalX = Math.random() * common.WORLD_WIDTH;
+      //     bot.goalY = Math.random() * common.WORLD_HEIGHT;
+      //   }
+      // } while (bot.timeoutBeforeTurn === undefined);
     }
   }
 
@@ -170,6 +198,6 @@ function createBot(): Bot {
 }
 
 let bots: Array<Bot> = [];
-for (let i = 0; i < 10; ++i) {
+for (let i = 0; i < 20; ++i) {
   bots.push(createBot());
 }

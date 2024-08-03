@@ -115,6 +115,7 @@ const wss = new WebSocketServer({
 });
 
 wss.on("connection", (ws) => {
+  ws.binaryType = "arraybuffer";
   if (players.size >= SERVER_LIMIT) {
     ws.close();
     return;
@@ -149,24 +150,28 @@ wss.on("connection", (ws) => {
     bytesReceivedWithinTick += event.data.toString().length;
     messagesRecievedWithInTick += 1;
 
-    let message;
-    try {
-      message = JSON.parse(event.data.toString());
-    } catch (e) {
-      stats.bogusMessages += 1;
-      console.log(`Received bogus message from client ${id}`, message);
-      ws.close();
-      return;
-    }
-
-    // * Server receives AmmaMoving & then Transforms it into player moving
-    if (common.isAmmaMoving(message)) {
-      // console.log(`Player ${id} is moving `, message);
-      player.moving[message.direction] = message.start;
-      player.moved = true;
+    if (event.data instanceof ArrayBuffer) {
+      const view = new DataView(event.data)
+      if (
+        common.AmmaMovingStruct.size === view.byteLength &&
+        common.AmmaMovingStruct.kind.read(view, 0) ===
+          common.MessageKind.AmmaMoving
+      ) {
+        // * Server receives AmmaMoving & then Transforms it into player moving
+        common.setMovingMask(player.moving, common.AmmaMovingStruct.moving.read(view, 0))
+        player.moved = true;
+      } else {
+        stats.bogusMessages += 1;
+        console.log(`Received bogus message from client ${id}`, view);
+        ws.close();
+        return;
+      }
     } else {
       stats.bogusMessages += 1;
-      console.log(`Received bogus message from client ${id}`, message);
+      console.error(
+        "Received bogus message from client. Expected binary data ",
+        event
+      );
       ws.close();
       return;
     }
@@ -308,7 +313,7 @@ function tick() {
         view,
         0,
         common.movingMask(player.moving)
-      );      
+      );
 
       // * Notify everyone who moved
       players.forEach((otherPlayer) => {
@@ -339,9 +344,9 @@ function tick() {
   bytesReceivedWithinTick = 0;
   messagesRecievedWithInTick = 0;
 
-  // if (stats.ticksCount % SERVER_FPS == 0) {
-  //   printStats();
-  // }
+  if (stats.ticksCount % SERVER_FPS == 0) {
+    printStats();
+  }
 
   setTimeout(tick, 1000 / SERVER_FPS);
 }

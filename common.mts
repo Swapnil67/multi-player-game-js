@@ -19,7 +19,7 @@ export type Moving = {
 // TODO: it's really easy to forget to update this arrray if the definition of type direction changes
 const directions: Direction[] = ["left", "right", "up", "down"];
 
-// * Converts moving obj to moving binary 
+// * Converts moving obj to moving binary
 export function movingMask(moving: Moving): number {
   let mask = 0;
   for (let i = 0; i < directions.length; ++i) {
@@ -30,7 +30,7 @@ export function movingMask(moving: Moving): number {
   return mask;
 }
 
-// * Converts moving binary to moving obj 
+// * Converts moving binary to moving obj
 export function setMovingMask(moving: Moving, mask: number) {
   for (let i = 0; i < directions.length; ++i) {
     // console.log(mask, " ", i, " -> ", (mask << i)&1);
@@ -45,7 +45,7 @@ export function movingFromMask(mask: number): Moving {
     right: false,
     up: false,
     down: false,
-  }
+  };
   setMovingMask(moving, mask);
   return moving;
 }
@@ -85,7 +85,8 @@ export enum MessageKind {
   Hello,
   PlayerJoined,
   PlayerLeft,
-  PlayerMoving
+  AmmaMoving,
+  PlayerMoving,
 }
 
 interface Field {
@@ -189,21 +190,16 @@ export const PlayerLeftStruct = (() => {
   };
 })();
 
-// * Clients sends to server when it starts moving
-export interface AmmaMoving {
-  kind: "AmmaMoving";
-  start: boolean;
-  direction: Direction;
-}
+// * Amma Moving Message
 
-export function isAmmaMoving(arg: any): arg is AmmaMoving {
-  return (
-    arg &&
-    arg.kind == "AmmaMoving" &&
-    isBoolean(arg.start) &&
-    isDirection(arg.direction)
-  );
-}
+export const AmmaMovingStruct = (() => {
+  const allocator = { iota: 0 };
+  return {
+    kind: allocUint8Field(allocator),
+    moving: allocUint8Field(allocator),
+    size: allocator.iota,
+  };
+})();
 
 // * Player Moving
 

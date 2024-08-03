@@ -165,32 +165,52 @@ const url = `ws://${host}:6970`;
   });
 
   window.addEventListener("keydown", (e) => {
-    if (!e.repeat) {
-      const direction = DIRECTION_KEYS[e.code];
-      if (direction !== undefined) {
-        ws?.send(
-          JSON.stringify({
-            kind: "AmmaMoving",
-            start: true,
-            direction,
-          })
-        );
+    if (ws !== undefined && me !== undefined) {
+      if (!e.repeat) {
+        const direction = DIRECTION_KEYS[e.code];
+        if (direction !== undefined) {
+          me.moving[direction] = true;
+          const view = new DataView(
+            new ArrayBuffer(common.AmmaMovingStruct.size)
+          );
+          common.AmmaMovingStruct.kind.write(
+            view,
+            0,
+            common.MessageKind.AmmaMoving
+          );
+          common.AmmaMovingStruct.moving.write(
+            view,
+            0,
+            common.movingMask(me.moving)
+          );
+          ws.send(view);
+        }
       }
     }
   });
 
   // TODO: When the window loses the focus, reset all the controls
   window.addEventListener("keyup", (e) => {
-    if (!e.repeat) {
-      const direction = DIRECTION_KEYS[e.code];
-      if (direction !== undefined) {
-        ws?.send(
-          JSON.stringify({
-            kind: "AmmaMoving",
-            start: false,
-            direction,
-          })
-        );
+    if (ws !== undefined && me !== undefined) {
+      if (!e.repeat) {
+        const direction = DIRECTION_KEYS[e.code];
+        if (direction !== undefined) {
+          me.moving[direction] = false;
+          const view = new DataView(
+            new ArrayBuffer(common.AmmaMovingStruct.size)
+          );
+          common.AmmaMovingStruct.kind.write(
+            view,
+            0,
+            common.MessageKind.AmmaMoving
+          );
+          common.AmmaMovingStruct.moving.write(
+            view,
+            0,
+            common.movingMask(me.moving)
+          );
+          ws.send(view);
+        }
       }
     }
   });
