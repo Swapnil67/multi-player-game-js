@@ -1,11 +1,5 @@
 import * as common from "./common.mjs";
-import {
-  Player,
-  Direction,
-  WORLD_HEIGHT,
-  WORLD_WIDTH,
-  PLAYER_SIZE,
-} from "./common.mjs";
+import { Player, Direction, WORLD_HEIGHT, WORLD_WIDTH } from "./common.mjs";
 
 const DIRECTION_KEYS: { [key: string]: Direction } = {
   ArrowLeft: Direction.Left,
@@ -30,6 +24,7 @@ const url = `ws://${host}:6970`;
 
   let ws: WebSocket | undefined = new WebSocket(url);
   let me: Player | undefined = undefined;
+  let ping = 0;
   const players = new Map<number, Player>();
   ws.binaryType = "arraybuffer";
   ws.addEventListener("close", (event) => {
@@ -118,6 +113,10 @@ const url = `ws://${host}:6970`;
           player.x = x;
           player.y = y;
           // console.log("Player ", player, " moving ", moving);
+        } else if (common.PingPongStruct.verifyPong(view)) {
+          ping =
+            performance.now() - common.PingPongStruct.timestamp.read(view, 0);
+          console.log(ping);
         } else {
           console.error("Received bogus message from server.", view);
           ws?.close();
@@ -129,8 +128,9 @@ const url = `ws://${host}:6970`;
     console.log("WEBSOCKET ERROR ", event);
   });
 
+  const PING_COOLDOWN = 60;
   let previousTimestamp = 0;
-  let pingCooldown = 60;
+  let pingCooldown = PING_COOLDOWN;
   const frame = (timestamp: number) => {
     const deltaTime = (timestamp - previousTimestamp) / 1000;
     previousTimestamp = timestamp;
@@ -138,20 +138,57 @@ const url = `ws://${host}:6970`;
     ctx.fillStyle = "#202020";
     ctx.fillRect(0, 0, ctx.canvas.width, ctx.canvas.height);
 
-    // * Draw Players
-    ctx.fillStyle = "white";
-    ctx.fillRect(0, 0, WORLD_WIDTH, WORLD_HEIGHT);
-    players.forEach((player) => {
-      common.updatePlayer(player, deltaTime);
-      ctx.fillStyle = `hsl(${player.hue}, 80%, 50%)`;
-      ctx.fillRect(player.x, player.y, PLAYER_SIZE, PLAYER_SIZE);
+    if (ws === undefined) {
+      const label = "Disconnected";
+      const size = ctx.measureText(label);
+      ctx.font = "48px bold";
+      ctx.fillStyle = "white";
+      ctx.fillText(
+        label,
+        ctx.canvas.width / 2 - size.width / 2,
+        ctx.canvas.height / 2
+      );
+    } else {
+      // * Draw Players
+      players.forEach((player) => {
+        if (me !== undefined && me.id !== player.id) {
+          common.updatePlayer(player, deltaTime);
+          ctx.fillStyle = `hsl(${player.hue}, 80%, 50%)`;
+          ctx.fillRect(
+            player.x,
+            player.y,
+            common.PLAYER_SIZE,
+            common.PLAYER_SIZE
+          );
+        }
+      });
 
-      // ctx.strokeStyle = "black";
-      // ctx.lineWidth = 4;
-      // ctx.beginPath()
-      // ctx.strokeRect(player.x, player.y, PLAYER_SIZE, PLAYER_SIZE);
-      // ctx.stroke();
-    });
+      if (me !== undefined) {
+        common.updatePlayer(me, deltaTime);
+        ctx.fillStyle = `hsl(${me.hue}, 100%, 50%)`;
+        ctx.fillRect(me.x, me.y, common.PLAYER_SIZE, common.PLAYER_SIZE);
+
+        ctx.strokeStyle = "white";
+        ctx.lineWidth = 4;
+        ctx.beginPath();
+        ctx.strokeRect(me.x, me.y, common.PLAYER_SIZE, common.PLAYER_SIZE);
+        ctx.stroke();
+      }
+
+      ctx.font = "18px bold";
+      ctx.fillStyle = "white";
+      const padding = ctx.canvas.width * 0.05;
+      ctx.fillText(`Ping: ${ping.toFixed(2)}ms`, padding, padding);
+
+      pingCooldown -= 1;
+      if (pingCooldown <= 0) {
+        const view = new DataView(new ArrayBuffer(common.PingPongStruct.size));
+        common.PingPongStruct.kind.write(view, common.MessageKind.Ping);
+        common.PingPongStruct.timestamp.write(view, performance.now());
+        ws.send(view);
+        pingCooldown = PING_COOLDOWN;
+      }
+    }
 
     window.requestAnimationFrame(frame);
   };

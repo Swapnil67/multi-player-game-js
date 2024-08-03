@@ -110,6 +110,7 @@ let messagesRecievedWithInTick = 0;
 // const eventQueue: Array<Events> = [];
 const joinedIds: Set<number> = new Set();
 const leftIds: Set<number> = new Set();
+const pingIds = new Map<number, number>();
 
 const wss = new WebSocketServer({
   port: common.SERVER_PORT,
@@ -162,6 +163,8 @@ wss.on("connection", (ws) => {
         } else {
           player.newMoving = player.newMoving & ~(1 << direction);
         }
+      } else if (common.PingPongStruct.verifyPing(view)) {
+        pingIds.set(id, common.PingPongStruct.timestamp.read(view, 0));
       } else {
         stats.bogusMessages += 1;
         console.log(`Received bogus message from client ${id}`, view);
@@ -314,6 +317,20 @@ function tick() {
   // * Simulating the world for one server tick
   players.forEach((player) => common.updatePlayer(player, 1 / SERVER_FPS));
 
+  // * Sending out pings
+  pingIds.forEach((timestamp, id) => {
+    const player = players.get(id);
+    if (player !== undefined) {
+      // * This may happen a player may send a ping and leave.
+      const view = new DataView(new ArrayBuffer(common.PingPongStruct.size));
+      common.PingPongStruct.kind.write(view, common.MessageKind.Pong);
+      common.PingPongStruct.timestamp.write(view, timestamp);
+      player.ws.send(view);
+      bytesSentCounter += view.byteLength;
+      messageSentCounter += 1;
+    }
+  });
+
   const tickTime = (performance.now() - beginTickTime) / 1000;
   stats.ticksCount += 1;
   pushAverage(stats.tickTimes, tickTime);
@@ -326,12 +343,13 @@ function tick() {
 
   joinedIds.clear();
   leftIds.clear();
+  pingIds.clear();
   bytesReceivedWithinTick = 0;
   messagesRecievedWithInTick = 0;
 
-  if (stats.ticksCount % SERVER_FPS == 0) {
-    printStats();
-  }
+  // if (stats.ticksCount % SERVER_FPS == 0) {
+  //   printStats();
+  // }
 
   setTimeout(tick, 1000 / SERVER_FPS);
 }

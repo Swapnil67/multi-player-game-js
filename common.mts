@@ -122,7 +122,7 @@ export const PingPongStruct = (() => {
   const timestamp = allocUint32Field(allocator);
   const size = allocator.iota;
   const verifyPing = verifier(kind, MessageKind.Ping, size);
-  const verifyPong = verifier(kind, MessageKind.Ping, size);
+  const verifyPong = verifier(kind, MessageKind.Pong, size);
   return {
     kind,
     timestamp,
