@@ -29,7 +29,6 @@ const url = `ws://${host}:6970`;
   if (ctx == null) throw new Error("2d Canvas is not supported");
 
   let ws: WebSocket | undefined = new WebSocket(url);
-  let myId: undefined | number = undefined;
   let me: Player | undefined = undefined;
   const players = new Map<number, Player>();
   ws.binaryType = "arraybuffer";
@@ -131,9 +130,13 @@ const url = `ws://${host}:6970`;
   });
 
   let previousTimestamp = 0;
+  let pingCooldown = 60;
   const frame = (timestamp: number) => {
     const deltaTime = (timestamp - previousTimestamp) / 1000;
     previousTimestamp = timestamp;
+
+    ctx.fillStyle = "#202020";
+    ctx.fillRect(0, 0, ctx.canvas.width, ctx.canvas.height);
 
     // * Draw Players
     ctx.fillStyle = "white";
@@ -178,7 +181,7 @@ const url = `ws://${host}:6970`;
     }
   });
 
-  // * Player stopped moving 
+  // * Player stopped moving
   window.addEventListener("keyup", (e) => {
     if (ws !== undefined && me !== undefined) {
       if (!e.repeat) {

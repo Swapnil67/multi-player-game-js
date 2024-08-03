@@ -1,6 +1,5 @@
 import { WebSocket, WebSocketServer } from "ws";
 
-
 export const START_MOVING = 1;
 export const STOP_MOVING = 0;
 export const SERVER_PORT = 6970;
@@ -52,6 +51,8 @@ export enum MessageKind {
   PlayerLeft,
   AmmaMoving,
   PlayerMoving,
+  Ping,
+  Pong,
 }
 
 interface Field {
@@ -69,8 +70,7 @@ function allocUint8Field(allocator: { iota: number }): Field {
     offset,
     size,
     read: (view, baseOffset) => view.getUint8(baseOffset + offset),
-    write: (view, value) =>
-      view.setUint8(0 + offset, value),
+    write: (view, value) => view.setUint8(0 + offset, value),
   };
 }
 
@@ -82,8 +82,7 @@ function allocUint32Field(allocator: { iota: number }): Field {
     offset,
     size,
     read: (view, baseOffset) => view.getUint32(baseOffset + offset, true),
-    write: (view, value) =>
-      view.setUint32(0 + offset, value, true),
+    write: (view, value) => view.setUint32(0 + offset, value, true),
   };
 }
 
@@ -95,9 +94,16 @@ function allocFloat32Field(allocator: { iota: number }): Field {
     offset,
     size,
     read: (view, baseOffset) => view.getFloat32(baseOffset + offset, true),
-    write: (view, value) =>
-      view.setFloat32(0 + offset, value, true),
+    write: (view, value) => view.setFloat32(0 + offset, value, true),
   };
+}
+
+function verifier(
+  kindField: Field,
+  kind: number,
+  size: number
+): (view: DataView) => boolean {
+  return (view) => view.byteLength === size && kindField.read(view, 0) == kind;
 }
 
 // * Hello Message
@@ -109,6 +115,22 @@ export interface Hello {
   y: number;
   hue: number;
 }
+
+export const PingPongStruct = (() => {
+  const allocator = { iota: 0 };
+  const kind = allocUint8Field(allocator);
+  const timestamp = allocUint32Field(allocator);
+  const size = allocator.iota;
+  const verifyPing = verifier(kind, MessageKind.Ping, size);
+  const verifyPong = verifier(kind, MessageKind.Ping, size);
+  return {
+    kind,
+    timestamp,
+    size,
+    verifyPing,
+    verifyPong,
+  };
+})();
 
 // * Definition of structure in javascript
 // * [kind: Uint8] [id: Uint32] [x: Float32] [y: Float32] [hue: Uint8]
