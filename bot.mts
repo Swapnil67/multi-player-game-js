@@ -50,7 +50,7 @@ function createBot(): Bot {
           console.log("Connected as player ", bot.me.id);
         } else {
           console.error(
-            "Received bogus message from server. Incorrect `Hello` message ",
+            "Received bogus message from server. Expected Hello Message",
             view
           );
           bot.ws.close();
@@ -63,17 +63,26 @@ function createBot(): Bot {
         bot.ws.close();
       }
     } else {
-      const message = JSON.parse(event.data.toString());
       if (event.data instanceof ArrayBuffer) {
-        // * PlayerJoined Buffer
-      } else {
-        if (common.isPlayerMoving(message)) {
-          if (message.id === bot.me.id) {
-            bot.me.x = message.x;
-            bot.me.y = message.y;
-            bot.me.moving[message.direction] = message.start;
+        const view = new DataView(event.data);
+        if (event.data instanceof ArrayBuffer) {
+          if (
+            common.PlayerMovingStruct.size === view.byteLength &&
+            common.PlayerMovingStruct.kind.read(view, 0) ===
+              common.MessageKind.PlayerMoving
+          ) {
+            const id = common.PlayerMovingStruct.id.read(view, 0);
+            const x = common.PlayerMovingStruct.x.read(view, 0);
+            const y = common.PlayerMovingStruct.y.read(view, 0);
+            const mask = common.PlayerMovingStruct.moving.read(view, 0);
+            if (bot.me.id === id) {
+              common.setMovingMask(bot.me.moving, mask);
+              bot.me.x = x;
+              bot.me.y = y;
+            }
           }
         }
+      } else {
       }
     }
   });
